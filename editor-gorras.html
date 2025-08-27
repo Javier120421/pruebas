@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es-419">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DARYMAKEUP — Editor de Gorras</title>
+  <style>
+    :root{
+      --bg:#0b0b0c; --panel:#141418; --muted:#8b8b94; --text:#f5f5f7; --accent:#ff4d6d; --accent-2:#7bd88f; --warn:#f9c74f; --error:#ef4444;
+      --border: #23232a; --shadow: 0 6px 20px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .container{max-width:1100px;margin-inline:auto;padding:24px}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:16px}
+    h1{font-weight:800;letter-spacing:.3px;margin:0;font-size:clamp(22px,3.5vw,34px)}
+    .tag{font-size:12px;color:var(--muted);padding:4px 8px;border:1px solid var(--border);border-radius:999px}
+
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px}
+    button,.btn{appearance:none;border:none;background:var(--panel);color:var(--text);padding:10px 14px;border-radius:12px;cursor:pointer;border:1px solid var(--border);box-shadow:var(--shadow)}
+    button:hover{filter:brightness(1.05)}
+    .btn-accent{background:linear-gradient(135deg,var(--accent),#ff7f50)}
+    .btn-success{background:linear-gradient(135deg,var(--accent-2),#35c28b)}
+    .btn-warn{background:linear-gradient(135deg,var(--warn),#ffad33);color:#1a1a1a}
+    .btn-ghost{background:transparent}
+
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+    @media (max-width: 900px){.grid{grid-template-columns:1fr}}
+
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow)}
+    .card h2{margin:0 0 6px 0;font-size:18px}
+    .card .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+    .card .body{padding:18px}
+
+    form .row{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    label{font-size:12px;color:var(--muted)}
+    input[type="text"],input[type="number"],textarea,select{width:100%;background:#101015;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 12px;outline:none}
+    textarea{min-height:74px;resize:vertical}
+    input[type="file"]{border:1px dashed var(--border);padding:10px;border-radius:12px;background:#101015;color:var(--muted)}
+
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .right{margin-left:auto}
+
+    .preview{display:flex;gap:12px;align-items:center}
+    .preview img{width:56px;height:56px;border-radius:14px;object-fit:cover;border:1px solid var(--border)}
+
+    /* Tabla */
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{position:sticky;top:0;background:#0f0f13;color:#b8b8c4;border-bottom:1px solid var(--border);font-size:12px;text-align:left;padding:10px}
+    tbody td{border-bottom:1px solid var(--border);padding:12px;font-size:14px;vertical-align:middle}
+    tbody tr:hover{background:#111118}
+    .thumb{width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid var(--border)}
+    .pill{padding:4px 8px;background:#101018;border:1px solid var(--border);border-radius:999px;font-size:12px;color:#cfd1d6}
+
+    /* Badges */
+    .status.active{color:#1cd66d}.status.inactive{color:var(--muted)}
+
+    .searchbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+    .searchbar input,.searchbar select{height:40px}
+
+    .help{font-size:12px;color:var(--muted)}
+
+    .footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;color:var(--muted);font-size:12px}
+    .link{color:#a6e1ff;text-decoration:none}
+
+    .danger{color:var(--error)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div style="display:flex;align-items:center;gap:10px">
+        <h1>Editor de Gorras</h1>
+        <span class="tag">CRUD + Búsqueda + Import/Export</span>
+      </div>
+      <div class="toolbar">
+        <button id="btnExport" title="Exportar JSON" class="btn">Exportar</button>
+        <label class="btn" for="importFile" title="Importar JSON">Importar</label>
+        <input type="file" id="importFile" accept="application/json" hidden>
+        <button id="btnSeed" class="btn-ghost" title="Cargar demo">Cargar demo</button>
+        <button id="btnReset" class="btn-ghost danger" title="Borrar todo">Borrar todo</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Panel: Formulario de creación/edición -->
+      <section class="card" aria-labelledby="form-title">
+        <div class="body">
+          <h2 id="form-title">Añadir / Editar Gorra</h2>
+          <p class="sub">Paso a paso: completa el formulario y pulsa <strong>Guardar</strong>. Para editar, haz clic en el icono ✏️ en la tabla.</p>
+
+          <form id="capForm" autocomplete="off">
+            <input type="hidden" id="capId">
+
+            <div class="row" style="margin-bottom:12px">
+              <div class="field" style="grid-column: span 6">
+                <label for="name">Nombre</label>
+                <input id="name" type="text" placeholder="Ej. Gorra Trucker Negra" required>
+              </div>
+              <div class="field" style="grid-column: span 3">
+                <label for="price">Precio (COP)</label>
+                <input id="price" type="number" min="0" step="100" placeholder="35000" required>
+              </div>
+              <div class="field" style="grid-column: span 3">
+                <label for="stock">Stock</label>
+                <input id="stock" type="number" min="0" step="1" placeholder="10" required>
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:12px">
+              <div class="field" style="grid-column: span 4">
+                <label for="color">Color</label>
+                <input id="color" type="text" placeholder="Negro / Rojo / Azul">
+              </div>
+              <div class="field" style="grid-column: span 4">
+                <label for="size">Talla</label>
+                <select id="size">
+                  <option value="Única">Única</option>
+                  <option value="S">S</option>
+                  <option value="M">M</option>
+                  <option value="L">L</option>
+                  <option value="XL">XL</option>
+                </select>
+              </div>
+              <div class="field" style="grid-column: span 4">
+                <label for="active">Estado</label>
+                <select id="active">
+                  <option value="true">Activo</option>
+                  <option value="false">Inactivo</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:12px">
+              <div class="field" style="grid-column: span 12">
+                <label for="desc">Descripción</label>
+                <textarea id="desc" placeholder="Detalles, material, estilo..." maxlength="300"></textarea>
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:12px;align-items:center">
+              <div class="field" style="grid-column: span 8">
+                <label for="image">Imagen (sube un archivo o pega una URL)</label>
+                <input id="image" type="file" accept="image/*">
+              </div>
+              <div class="field" style="grid-column: span 4">
+                <label for="imageUrl">…o URL de imagen</label>
+                <input id="imageUrl" type="text" placeholder="https://...">
+              </div>
+            </div>
+
+            <div class="preview">
+              <img id="preview" alt="Vista previa" src="" style="display:none">
+              <span class="help">La imagen se guardará dentro del navegador (localStorage). Ideal para pruebas.</span>
+            </div>
+
+            <div class="actions" style="margin-top:14px">
+              <button class="btn-accent" type="submit">Guardar</button>
+              <button class="btn" type="button" id="btnClear">Limpiar</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Panel: Listado y filtros -->
+      <section class="card" aria-labelledby="list-title">
+        <div class="body">
+          <h2 id="list-title">Listado de Gorras</h2>
+          <div class="sub">Filtra, edita o elimina. Haz clic en los encabezados para ordenar.</div>
+
+          <div class="searchbar">
+            <input id="q" type="text" placeholder="Buscar por nombre o descripción" style="flex:1;min-width:200px">
+            <select id="fColor"><option value="">Color</option></select>
+            <select id="fSize">
+              <option value="">Talla</option>
+              <option>Única</option><option>S</option><option>M</option><option>L</option><option>XL</option>
+            </select>
+            <select id="fActive"><option value="">Estado</option><option value="true">Activo</option><option value="false">Inactivo</option></select>
+            <button id="btnClearFilters" class="btn">Limpiar filtros</button>
+          </div>
+
+          <div class="table-wrap">
+            <table id="table">
+              <thead>
+                <tr>
+                  <th data-sort="name">Producto</th>
+                  <th data-sort="price">Precio</th>
+                  <th data-sort="color">Color</th>
+                  <th data-sort="size">Talla</th>
+                  <th data-sort="stock">Stock</th>
+                  <th data-sort="active">Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            <div id="count">0 items</div>
+            <div>
+              <small class="help">Consejo: usa <strong>Exportar</strong> para respaldar tus datos, e <strong>Importar</strong> para cargarlos en otro PC.</small>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+
+  <script>
+    /*\n    ======================================================
+    EDITOR DE GORRAS — PASO A PASO (Resumen)
+    ------------------------------------------------------
+    Paso 1: Estructura base + almacenamiento local (localStorage)
+    Paso 2: Formulario con validación y vista previa de imagen
+    Paso 3: Listado con ordenamiento, búsqueda y filtros
+    Paso 4: Acciones (crear, editar, duplicar, eliminar)
+    Paso 5: Importar/Exportar JSON y datos de demo
+    Paso 6: Pequeños detalles UX (contadores, estados, helpers)
+    ======================================================
+    */
+
+    // ————— Utilidades —————
+    const LS_KEY = 'darymakeup_gorras_v1';
+    const $ = (sel, ctx=document) => ctx.querySelector(sel);
+    const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+
+    const money = (n=0) => new Intl.NumberFormat('es-CO', {style:'currency', currency:'COP', maximumFractionDigits:0}).format(+n || 0);
+    const uid = () => 'g_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+    const readStore = () => {
+      try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+    }
+    const writeStore = (arr) => localStorage.setItem(LS_KEY, JSON.stringify(arr));
+
+    // ————— Estado actual —————
+    let caps = readStore();
+    let sortBy = 'name';
+    let sortDir = 'asc';
+
+    // ————— Referencias —————
+    const form = $('#capForm');
+    const preview = $('#preview');
+    const inputs = {
+      id: $('#capId'), name: $('#name'), price: $('#price'), stock: $('#stock'),
+      color: $('#color'), size: $('#size'), active: $('#active'), desc: $('#desc'), image: $('#image'), imageUrl: $('#imageUrl')
+    };
+
+    const filters = { q: $('#q'), color: $('#fColor'), size: $('#fSize'), active: $('#fActive') };
+
+    // ————— Render de opciones dinámicas —————
+    function refreshColorFilter(){
+      const colors = Array.from(new Set(caps.map(c => (c.color||'').trim()).filter(Boolean))).sort();
+      const sel = filters.color; sel.innerHTML = '<option value="">Color</option>' + colors.map(c=>`<option>${c}</option>`).join('');
+    }
+
+    // ————— Vista previa de imagen —————
+    function setPreview(src){
+      if(src){ preview.src = src; preview.style.display='block'; }
+      else { preview.removeAttribute('src'); preview.style.display='none'; }
+    }
+
+    inputs.image.addEventListener('change', async (e)=>{
+      const file = e.target.files?.[0];
+      if(!file) return setPreview();
+      const reader = new FileReader();
+      reader.onload = () => setPreview(reader.result);
+      reader.readAsDataURL(file);
+    });
+    inputs.imageUrl.addEventListener('input', (e)=>{
+      const url = e.target.value.trim();
+      if(url && /^https?:\/\//i.test(url)) setPreview(url);
+      else if(!url && !inputs.image.files?.[0]) setPreview();
+    });
+
+    // ————— CRUD —————
+    function validate(){
+      const name = inputs.name.value.trim();
+      const price = +inputs.price.value;
+      const stock = +inputs.stock.value;
+      if(!name) return alert('El nombre es obligatorio.'), false;
+      if(!(price >= 0)) return alert('Precio inválido.'), false;
+      if(!(stock >= 0)) return alert('Stock inválido.'), false;
+      return true;
+    }
+
+    async function getImageData(){
+      // Prioridad: archivo subido, luego URL escrita
+      if(inputs.image.files && inputs.image.files[0]){
+        const file = inputs.image.files[0];
+        const reader = new FileReader();
+        return await new Promise(res=>{ reader.onload = ()=>res(reader.result); reader.readAsDataURL(file); });
+      }
+      const url = inputs.imageUrl.value.trim();
+      return url || '';
+    }
+
+    function clearForm(){
+      form.reset(); inputs.id.value = ''; setPreview();
+    }
+
+    function loadToForm(cap){
+      inputs.id.value = cap.id;
+      inputs.name.value = cap.name||'';
+      inputs.price.value = cap.price||0;
+      inputs.stock.value = cap.stock||0;
+      inputs.color.value = cap.color||'';
+      inputs.size.value = cap.size||'Única';
+      inputs.active.value = String(!!cap.active);
+      inputs.desc.value = cap.desc||'';
+      setPreview(cap.image||'');
+      inputs.image.value = ''; // limpiamos file
+      inputs.imageUrl.value = cap.image?.startsWith('http') ? cap.image : '';
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    form.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      if(!validate()) return;
+      const isEdit = !!inputs.id.value;
+      const obj = {
+        id: isEdit ? inputs.id.value : uid(),
+        name: inputs.name.value.trim(),
+        price: +inputs.price.value,
+        stock: +inputs.stock.value,
+        color: inputs.color.value.trim(),
+        size: inputs.size.value,
+        active: inputs.active.value === 'true',
+        desc: inputs.desc.value.trim(),
+        image: await getImageData()
+      };
+      if(isEdit){
+        const idx = caps.findIndex(c=>c.id===obj.id);
+        if(idx>-1) caps[idx]=obj;
+      } else { caps.unshift(obj); }
+      writeStore(caps);
+      refreshColorFilter();
+      render();
+      clearForm();
+    });
+
+    $('#btnClear').addEventListener('click', clearForm);
+
+    // ————— Render de tabla —————
+    const tbody = document.querySelector('#table tbody');
+
+    function render(){
+      const q = filters.q.value.trim().toLowerCase();
+      const fColor = filters.color.value;
+      const fSize = filters.size.value;
+      const fActive = filters.active.value;
+
+      let arr = caps.filter(c=>{
+        const matchQ = !q || c.name.toLowerCase().includes(q) || (c.desc||'').toLowerCase().includes(q);
+        const matchColor = !fColor || (c.color||'')===fColor;
+        const matchSize = !fSize || (c.size||'')===fSize;
+        const matchActive = !fActive || String(!!c.active)===fActive;
+        return matchQ && matchColor && matchSize && matchActive;
+      });
+
+      arr.sort((a,b)=>{
+        let va=a[sortBy], vb=b[sortBy];
+        if(typeof va==='string') va=va.toLowerCase();
+        if(typeof vb==='string') vb=vb.toLowerCase();
+        const s = va>vb?1:va<vb?-1:0; return sortDir==='asc'?s:-s;
+      });
+
+      tbody.innerHTML = arr.map(c=>`
+        <tr data-id="${c.id}">
+          <td>
+            <div style="display:flex;align-items:center;gap:10px">
+              <img class="thumb" src="${c.image||''}" alt="${c.name}">
+              <div>
+                <div style="font-weight:600">${c.name}</div>
+                <div class="help" style="max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.desc||''}</div>
+              </div>
+            </div>
+          </td>
+          <td>${money(c.price)}</td>
+          <td><span class="pill">${c.color||'-'}</span></td>
+          <td><span class="pill">${c.size||'-'}</span></td>
+          <td>${c.stock ?? 0}</td>
+          <td><span class="status ${c.active?'active':'inactive'}">${c.active?'Activo':'Inactivo'}</span></td>
+          <td>
+            <div class="actions">
+              <button class="btn" data-act="edit" title="Editar">✏️</button>
+              <button class="btn" data-act="dup" title="Duplicar">🧬</button>
+              <button class="btn" data-act="del" title="Eliminar" style="border-color:#3a2222">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      $('#count').textContent = `${arr.length} ${arr.length===1?'item':'items'}`;
+    }
+
+    // Ordenamiento por encabezado
+    $$('th[data-sort]').forEach(th=>{
+      th.style.cursor='pointer';
+      th.addEventListener('click',()=>{
+        const key = th.getAttribute('data-sort');
+        if(sortBy===key){ sortDir = sortDir==='asc'?'desc':'asc'; } else { sortBy=key; sortDir='asc'; }
+        render();
+      });
+    });
+
+    // Acciones de fila (delegación)
+    tbody.addEventListener('click',(e)=>{
+      const btn = e.target.closest('button[data-act]');
+      if(!btn) return;
+      const tr = e.target.closest('tr');
+      const id = tr?.dataset.id;
+      const idx = caps.findIndex(c=>c.id===id);
+      const cap = caps[idx];
+      if(!cap) return;
+
+      const act = btn.dataset.act;
+      if(act==='edit'){
+        loadToForm(cap);
+      } else if(act==='dup'){
+        const copy = {...cap, id: uid(), name: cap.name + ' (copia)'};
+        caps.unshift(copy); writeStore(caps); render();
+      } else if(act==='del'){
+        if(confirm(`¿Eliminar "${cap.name}"?`)){
+          caps.splice(idx,1); writeStore(caps); refreshColorFilter(); render();
+        }
+      }
+    });
+
+    // Filtros
+    Object.values(filters).forEach(el=> el.addEventListener('input',()=>render()));
+    $('#btnClearFilters').addEventListener('click',()=>{
+      filters.q.value=''; filters.color.value=''; filters.size.value=''; filters.active.value=''; render();
+    });
+
+    // Import/Export
+    $('#btnExport').addEventListener('click',()=>{
+      const blob = new Blob([JSON.stringify(caps,null,2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'gorras-darymakeup.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    $('#importFile').addEventListener('change', async (e)=>{
+      const file = e.target.files?.[0]; if(!file) return;
+      try{ const text = await file.text(); const data = JSON.parse(text);
+        if(!Array.isArray(data)) throw new Error('Formato inválido: se esperaba un array');
+        // Merge (si id coincide, reemplaza)
+        const map = new Map(caps.map(c=>[c.id,c]));
+        data.forEach(obj=>{ if(obj && obj.id){ map.set(obj.id, {...map.get(obj.id), ...obj}); }});
+        caps = Array.from(map.values());
+        writeStore(caps); refreshColorFilter(); render();
+        alert('Importación completada.');
+      } catch(err){ alert('No se pudo importar: '+ err.message); }
+      e.target.value = '';
+    });
+
+    // Datos de demo
+    $('#btnSeed').addEventListener('click',()=>{
+      if(!confirm('Esto añadirá ejemplos al listado. ¿Continuar?')) return;
+      const demo = [
+        {id:uid(), name:'Gorra Trucker Negra', price:35000, stock:15, color:'Negro', size:'Única', active:true, desc:'Clásica trucker con malla, ajuste snapback.', image:'https://images.unsplash.com/photo-1511886929837-354d827aae30?q=80&w=300&auto=format&fit=crop'},
+        {id:uid(), name:'Gorra Dad Azul', price:42000, stock:8, color:'Azul', size:'M', active:true, desc:'Estilo "dad" desestructurada, algodón suave.', image:'https://images.unsplash.com/photo-1509941662819-6c9a17efd4c7?q=80&w=300&auto=format&fit=crop'},
+        {id:uid(), name:'Gorra Roja Deportiva', price:39000, stock:0, color:'Rojo', size:'L', active:false, desc:'Tejido técnico transpirable, ideal para entrenar.', image:'https://images.unsplash.com/photo-1603251579431-804140b70108?q=80&w=300&auto=format&fit=crop'}
+      ];
+      caps = [...demo, ...caps];
+      writeStore(caps); refreshColorFilter(); render();
+    });
+
+    // Reset
+    $('#btnReset').addEventListener('click',()=>{
+      if(confirm('Esto borrará TODOS los datos de gorras guardados en este navegador.')){
+        localStorage.removeItem(LS_KEY); caps = []; refreshColorFilter(); render(); clearForm();
+      }
+    });
+
+    // Inicializar
+    refreshColorFilter();
+    render();
+  </script>
+</body>
+</html>

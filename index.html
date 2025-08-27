@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin - Gorras</title>
+</head>
+<body>
+  <h1>Panel Admin - Gorras</h1>
+  <form id="form">
+    <textarea id="jsonData" rows="20" cols="80"></textarea><br>
+    <button type="submit">Guardar Cambios</button>
+  </form>
+
+  <script>
+    async function cargarJSON() {
+      const res = await fetch("gorras.json");
+      const data = await res.json();
+      document.getElementById("jsonData").value = JSON.stringify(data, null, 2);
+    }
+
+    document.getElementById("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nuevoJSON = document.getElementById("jsonData").value;
+
+      await fetch("guardar.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: nuevoJSON
+      });
+
+      alert("Cambios guardados ✅");
+    });
+
+    cargarJSON();
+  </script>
+</body>
+</html>
