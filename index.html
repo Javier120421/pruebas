@@ -2,36 +2,142 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Admin - Gorras</title>
-</head>
-<body>
-  <h1>Panel Admin - Gorras</h1>
-  <form id="form">
-    <textarea id="jsonData" rows="20" cols="80"></textarea><br>
-    <button type="submit">Guardar Cambios</button>
-  </form>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>¿Salimos este finde?</title>
 
-  <script>
-    async function cargarJSON() {
-      const res = await fetch("gorras.json");
-      const data = await res.json();
-      document.getElementById("jsonData").value = JSON.stringify(data, null, 2);
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
-    document.getElementById("form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const nuevoJSON = document.getElementById("jsonData").value;
+    .page {
+      display: none;
+      background: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      width: 90%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,.2);
+    }
 
-      await fetch("guardar.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: nuevoJSON
-      });
+    .page.active { display: block; }
 
-      alert("Cambios guardados ✅");
+    button {
+      padding: 12px 25px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin: 10px;
+    }
+
+    .yes { background: #4CAF50; color: white; }
+    .no  { background: #f44336; color: white; position: relative; }
+
+    .options { text-align: left; margin-top: 20px; }
+    .options label { display: block; margin: 10px 0; }
+
+    input[type="text"]{
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- PAG 1 -->
+<div class="page active" id="page1">
+  <h1>¿Salimos este finde? 😊</h1>
+  <button class="yes" onclick="goToPage(2)">Sí</button>
+  <button class="no" id="noBtn">No</button>
+</div>
+
+<!-- PAG 2 -->
+<div class="page" id="page2">
+  <h2>¿Qué te gustaría hacer?</h2>
+  <p><strong>Tú eres la que manda 💖</strong></p>
+
+  <form action="https://formspree.io/f/xdkqveko" method="POST" id="planForm">
+
+    <div class="options">
+      <label>
+        <input type="checkbox" name="plan[]" value="Ir a cine"> Ir a cine
+      </label>
+      <label>
+        <input type="checkbox" name="plan[]" value="Ir a cenar"> Ir a cenar
+      </label>
+      <label>
+        <input type="checkbox" name="plan[]" value="No tomo, pero si te gusta vamos y tomamos algo">
+        No tomo, pero si te gusta vamos y tomamos algo
+      </label>
+      <label>
+        <input type="checkbox" name="plan[]" value="Ir por un helado y pasar un rato">
+        Ir por un helado y pasar un rato
+      </label>
+
+      <label>
+        Otros:
+        <input type="text" name="otros" placeholder="Escribe aquí si tienes otra idea">
+      </label>
+    </div>
+
+    <button type="submit" class="yes">Continuar</button>
+  </form>
+</div>
+
+<!-- PAG 3 -->
+<div class="page" id="page3">
+  <h1>✨ Nos vemos el finde ✨</h1>
+</div>
+
+<script>
+  function goToPage(n) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page' + n).classList.add('active');
+  }
+
+  const noBtn = document.getElementById('noBtn');
+  noBtn.addEventListener('mouseover', () => {
+    const x = Math.random() * 200 - 100;
+    const y = Math.random() * 200 - 100;
+    noBtn.style.transform = `translate(${x}px, ${y}px)`;
+  });
+
+  const form = document.getElementById('planForm');
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const checked = document.querySelectorAll('input[type=checkbox]:checked');
+    if (checked.length === 0) {
+      alert('Elige al menos una opción 😊');
+      return;
+    }
+
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: { 'Accept': 'application/json' }
+    }).then(() => {
+      goToPage(3);
+      form.reset();
+    }).catch(() => {
+      alert('Ups, algo salió mal 😅');
     });
+  });
+</script>
 
-    cargarJSON();
-  </script>
 </body>
 </html>
+
+
